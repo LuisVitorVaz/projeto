@@ -1,0 +1,62 @@
+#include <GSM.h>
+
+// Configuração do módulo GSM
+#define PINNUMBER "YOUR_SIM_PIN"  // Insira o PIN do seu cartão SIM
+#define APN "your-apn"  // Insira o APN da sua operadora
+#define USERNAME ""  // Nome de usuário (deixe em branco se não for necessário)
+#define PASSWORD ""  // Senha (deixe em branco se não for necessário)
+
+GSMClient client;
+GPRS gprs;
+GSM gsmAccess;
+
+// Configuração do Firebase
+const char* firebaseHost = "your-firebase-url.firebaseio.com";
+const char* firebaseToken = "your-firebase-auth-token";
+const int firebasePort = 443;  // Porta HTTPS padrão para o Firebase
+
+void setup() {
+  // Inicialização do módulo GSM
+  Serial.begin(9600);
+  while (!gsmAccess.begin(PINNUMBER)) {
+    Serial.println("Falha ao iniciar o módulo GSM. Verifique a configuração.");
+    delay(10000);
+  }
+
+  // Inicialização do Firebase
+  gprs.attachGPRS(APN, USERNAME, PASSWORD);
+}
+
+void loop() {
+  // Verificar se o módulo GSM está conectado à rede
+  if (gsmAccess.isAccessAlive()) {
+    // Criar uma conexão segura com o Firebase
+    if (client.connect(firebaseHost, firebasePort)) {
+      // Construir a solicitação HTTP POST para atualizar os dados no Firebase
+      String postRequest = "PUT /path-to-your-firebase-data.json HTTP/1.1\r\n";
+      postRequest += "Host: " + String(firebaseHost) + "\r\n";
+      postRequest += "Content-Type: application/json\r\n";
+      postRequest += "Authorization: Bearer " + String(firebaseToken) + "\r\n";
+      postRequest += "Content-Length: " + String(data.length()) + "\r\n\r\n";
+      postRequest += "{\"status\": \"ligado\"}";
+
+      // Enviar a solicitação para o Firebase
+      client.print(postRequest);
+
+      // Aguardar a resposta do servidor
+      while (client.connected()) {
+        if (client.available()) {
+          char c = client.read();
+          Serial.print(c);
+        }
+      }
+      client.stop();
+    } else {
+      Serial.println("Falha ao conectar-se ao Firebase.");
+    }
+  } else {
+    Serial.println("Módulo GSM não conectado à rede.");
+  }
+
+  delay(10000); // Aguardar 10 segundos antes de enviar outra atualização
+}

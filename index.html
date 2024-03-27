@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaflet Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <style>
+    body {
+      margin: 10;
+      display: flex;
+    }
+
+    #map {
+      flex: 1;
+      height: 100vh;
+    }
+
+    #data-box {
+      flex: 0 0 300px; /* Largura fixa para a caixa de dados */
+      background-color: #39ce1c;
+      padding: 10px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+      position: relative; /* Para posicionar os botões corretamente */
+    }
+
+    .data-item {
+      margin-bottom: 10px;
+      background-color: white; /* Fundo branco */
+      padding: 10px;
+      border-radius: 10px; /* Bordas arredondadas */
+    }
+
+    .data-item strong {
+      display: inline-block;
+      width: 75px; /* Largura fixa para o rótulo */
+    }
+
+    #data-box h2 {
+      text-align: center; /* Centralizar o título "Dados" */
+    }
+
+    .route-button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      background-color: #f9f9f9;
+      color: rgb(16, 15, 15);
+      border: none;
+      cursor: pointer;
+      border-radius: 10px; /* Bordas arredondadas */
+    }
+  </style>
+</head>
+<body>
+  <div id="data-box">
+    <h2>Dados</h2>
+    <div class="data-item">
+      <strong>Latitude:</strong> <span id="latitude"></span>
+    </div>
+    <div class="data-item">
+      <strong>Longitude:</strong> <span id="longitude"></span>
+    </div>
+    <h3 style="text-align: center;">Rota 1</h3>
+    
+    <button class="route-button" id="boat1-btn" style="text-align: center; background-color: white; border-radius: 10px; padding: 10px; margin: auto; width: 5 fit-content; margin-bottom: 10px;">
+      <img src="imagens/barco.png" alt="Barco 1" style="width: 30px; height: 30px; margin-right: 10px; border-radius: 5px;">
+      Barco 1
+    </button>
+    <!-- icone do ponto verde -->
+    <button class="route-button" id="route1-btn" style="text-align: center; background-color: white; border-radius: 10px; padding: 10px; margin:  auto; width: 5 fit-content; margin-bottom: 10px;">
+      <img src="imagens/pontoverde.png" alt="Pontos" style="width: 15px; height: 15px; margin-right: 10px;border-radius: 5px; "> Pontos
+  </button>
+  
+  <button class="route-button" id="route2-btn" style="text-align: center; background-color: white; border-radius: 10px; padding: 10px; margin:  auto; width: 5 fit-content; margin-bottom: 10px;">
+      <img src="imagens/trajetoazul.png" alt="Tracado" style="width: 30px; height: 5px; margin-right: 10px;border-radius: 3px; "> Traçado
+  </button>
+
+  <button class="route-button" id="route3-btn" style="text-align: center; background-color: white; border-radius: 10px; padding: 10px; margin:  auto; width: 5 fit-content; margin-bottom: 10px;">
+    <img src="imagens/botaoalerta.png" alt="Alerta" style="width: 20px; height: 20px; margin-right: 10px; border-radius: 10px;"> Alerta
+  </button>
+    <!-- <button class="route-button" id="route2-btn">Traçado</button> -->
+    <h3 style="text-align: center;">Barco 2</h3>
+
+  <button class="route-button" id="route4-btn" style="text-align: center; background-color: white; border-radius: 10px; padding: 10px; margin:  auto; width: 5 fit-content; margin-bottom: 10px;">
+      <img src="imagens/pontoroxo.png" alt="Pontos2" style="width: 15px; height: 15px; margin-right: 10px;border-radius: 5px; "> Pontos
+  </button>
+  
+  <button class="route-button" id="route5-btn" style="text-align: center; background-color: white; border-radius: 10px; padding: 10px; margin:  auto; width: 5 fit-content; margin-bottom: 10px;">
+      <img src="imagens/trajetolaranja.png" alt="Tracado2" style="width: 30px; height: 5px; margin-right: 10px;border-radius: 3px; "> Traçado
+  </button>
+
+  <button class="route-button" id="route6-btn" style="text-align: center; background-color: white; border-radius: 10px; padding: 10px; margin:  auto; width: 5 fit-content; margin-bottom: 10px;">
+    <img src="imagens/botaoalerta.png" alt="Alerta2" style="width: 20px; height: 20px; margin-right: 10px; border-radius: 10px;"> Alerta
+  </button>
+
+
+
+  </div>
+
+  <div id="map"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-database.js"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+  <script type="module" src="./firebase.js"></script>
+  <script type="module" src="configmapa.js"></script>
+  <script type="module" src="botoes.js"></script>
+</body>
+</html>

@@ -4,23 +4,23 @@
 #include <TinyGPS.h>
 #include <SoftwareSerial.h>
 #include <ArduinoJson.h>
-
+SoftwareSerial sensor(0,7);//Rx,Tx
 SoftwareSerial serial1(4, 3); // RX, TX
 TinyGPS gps;
-
+#define pino 7
 #define rxPin 8
 #define txPin 9
 SoftwareSerial sim800(txPin, rxPin);
-
+int cont = 0, n_amostral = 10;
+float vetor_on[10] = {0}, vetor_off[10] = {0},temperatura;
 String dado1, dado2;
 int ano;
 byte mes, dia, hora, minuto, segundo, centesimo;
 bool interruptFlag = false;
 void enviarsms();
 const int interruptPin = 2; // Define o pino para a interrupção externa
-int cont =0;
+int cont1 =0;
 bool readingGPS = true; // Variável para indicar se estamos lendo dados do GPS ou não
-unsigned long delayDuration = 120000;
 const char FIREBASE_HOST[] = "bancodedados-a7591-default-rtdb.firebaseio.com";
 const String FIREBASE_AUTH = "09fFbaRrhJkNPoDVwRE3TszPG2m7TeUZKWuoAJUF";
 const String FIREBASE_PATH = "dados";
@@ -40,12 +40,13 @@ unsigned long previousMillis = 0;
 const long interval = 60000;  // Intervalo de 2 min em segundos (em milissegundos)
 
 void setup() {
+  pinMode(pino, INPUT); //Define o pino digital 7 como uma entrada de dados
   pinMode(interruptPin, INPUT); // Define o pino como entrada
   attachInterrupt(digitalPinToInterrupt(interruptPin), enviarsms, FALLING); // Configura a interrupção para ocorrer na borda de descida (FALLING)
   serial1.begin(9600);
   Serial.begin(9600);
   sim800.begin(9600);
- 
+  sensor.begin(9600); 
   Serial.println(F("Inicializando..."));
 
   Serial.println(F("Inicializando módulo SIM800L..."));
@@ -60,17 +61,41 @@ void setup() {
 }
 
 void loop() {
+  // Verifica se houve uma interrupção
   if (interruptFlag) {
-    // Faça o que precisa ser feito após a interrupção, como enviar um SMS
     enviarsms();
+    interruptFlag = false; // Reseta a flag de interrupção
+  }
+  // Lê o sensor por 1 minuto
+  unsigned long startTime1 = millis();
+  while (millis() - startTime1 < 60000) {
+    // lendo sensor
+    // Serial.println("lendo temperatura \n");
+    int estado_pino = digitalRead(pino);  //Lê o estado do pino (HIGH ou LOW)
+    float tempo_on = 0, tempo_off = 0;
+    while(estado_pino == HIGH){
+      tempo_on += 1;
+      estado_pino = digitalRead(pino);
+    }
+    while(estado_pino == LOW){
+      tempo_off += 1;
+      estado_pino = digitalRead(pino);
+    }
+    vetor_on[cont] = tempo_on;
+    vetor_off[cont] = tempo_off;
+    cont++;
+    if(cont == n_amostral){
+      // Serial.println("segunda funcao\n");
+      duty_cycle();
+      cont = 0; //Reinicialização do vetor
+      delay(250);
+    }
   }
 
-  if (readingGPS) {
-    lergps();
-  }
+  // Depois lê o GPS
+  lergps();
 }
-
-
+ 
 void PostToFirebase(const char *method, const String &path, const String &data, HttpClient *http) {
   String response;
   int statusCode = 0;
@@ -109,12 +134,14 @@ void gps_loop()
   Serial.println(dado2);//long
   Serial.println(testebotao); // dados se o botao foi pressionado ou nao
   
+  // VERIFICAR A TEMPERATURA NO SERVIDOR
 String Data = "{";
 Data += "\"dado1\":\"" + dado1 + "\",";
 Data += "\"dado2\":\"" + dado2 + "\",";
 Data += "\"botaoState\":\"" + testebotao + "\""; // Assuming testebotao is already a string or convertible to a string
 Data += "\"data\":\"" + String(dia) + "/" + String(mes) + "/" + String(ano) + "\",";
 Data += "\"hora\":\"" + String(hora) + ":" + String(minuto) + ":" + String(segundo) + ":" + String(centesimo) + "\"";
+Data += "\"temperatura\":\"" + String(temperatura) + "\",";
 Data += "}";
 
   PostToFirebase("PATCH", FIREBASE_PATH, Data, &http_client);
@@ -124,6 +151,8 @@ Data += "}";
 }
 
 void lergps(){
+  unsigned long startTime2 = millis();
+  while (millis() - startTime2 < 60000) { // 120000 milissegundos = 2 minutos
   serial1.listen();
   bool gpsDataReceived = false;
 
@@ -175,14 +204,15 @@ void lergps(){
 
   Serial.println(dado1);
   Serial.println(dado2);
-  
-
-  delay(250);
+   delay(250);
+  }
+ 
 
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis >= interval) {
     // Muda para ouvir a porta do módulo GSM
+    //  ler_sensor();
      sim800.listen();
 
     Serial.print(F("Conectando a "));
@@ -219,5 +249,35 @@ void lergps(){
 }
 }
 void enviarsms(){
-     testebotao=cont++;
+     testebotao=cont1++;
 }
+
+void duty_cycle(){
+  int i;
+  float duty_cycle = 0, tempo_alto = 0, soma_tempo_alto = 0, tempo_baixo = 0, soma_tempo_baixo = 0;
+  for(i = 0; i < n_amostral; i++){ 
+    soma_tempo_alto += vetor_on[i];             //Somatorio dos tempos de onda alta
+  }
+  tempo_alto = soma_tempo_alto/n_amostral;      //Cálculo da média do tempo baixo
+  for(i = 0; i < n_amostral; i++){ 
+    soma_tempo_baixo += vetor_off[i];           //Somatório dos tempos de onda baixa
+  }
+  tempo_baixo = soma_tempo_baixo/n_amostral;    //Cálculo da média do tempo baixo
+  duty_cycle = tempo_alto/tempo_baixo;          //Cálculo do duty cycle
+  if(duty_cycle < 1.6){
+    temperatura = (duty_cycle-1.0182)/0.0119;   //Cálculo de temperatura para a primeira reta
+  }
+  else{
+    temperatura = (duty_cycle+0.45)/0.04;       //Cálculo de temperatura para a segunda reta
+  }
+  Serial.print("Tempo de onda alta: ");
+  Serial.println(tempo_alto, 5);
+  Serial.print("Tempo de onda baixa: ");
+  Serial.println(tempo_baixo, 5);
+  Serial.print("Duty cycle médio medido: ");
+  Serial.println(duty_cycle, 5);    
+  Serial.print("A temperatura, portanto, é: ");
+  Serial.println(temperatura, 5); 
+  Serial.print("\n");
+  delay(250);
+  }

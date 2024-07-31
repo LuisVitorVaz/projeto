@@ -4,6 +4,7 @@
 #include <TinyGPS.h>
 #include <SoftwareSerial.h>
 #include <ArduinoJson.h>
+#include <avr/sleep.h> // Inclua a biblioteca sleep.h para modos de baixo consumo
 SoftwareSerial sensor(0,7);//Rx,Tx
 SoftwareSerial serial1(4, 3); // RX, TX
 TinyGPS gps;
@@ -17,7 +18,6 @@ String dado1, dado2;
 int ano;
 byte mes, dia, hora, minuto, segundo, centesimo;
 bool interruptFlag = false;
-void enviarsms();
 const int interruptPin = 2; // Define o pino para a interrupção externa
 int cont1 =0;
 bool readingGPS = true; // Variável para indicar se estamos lendo dados do GPS ou não
@@ -38,6 +38,7 @@ HttpClient http_client = HttpClient(gsm_client_secure_modem, FIREBASE_HOST, SSL_
 
 unsigned long previousMillis = 0;
 const long interval = 60000;  // Intervalo de 2 min em segundos (em milissegundos)
+// const long sleepInterval = 120000; // Intervalo de sono em milissegundos (2 minutos)
 
 void setup() {
   pinMode(pino, INPUT); //Define o pino digital 7 como uma entrada de dados
@@ -94,6 +95,12 @@ void loop() {
 
   // Depois lê o GPS
   lergps();
+
+  //   // Coloca o Arduino em modo de sono por 2 minutos
+  Serial.println("Arduino entrando em modo de sono por 2 minutos...");
+  enterSleepMode();
+
+    Serial.println("Arduino acordou.");
 }
  
 void PostToFirebase(const char *method, const String &path, const String &data, HttpClient *http) {
@@ -223,6 +230,7 @@ void lergps(){
       delay(1000); // Adiciona atraso antes de tentar novamente
       return;
     }
+     Serial.println("fora da funcao");//long
     Serial.println(F(" OK"));
 
     http_client.connect(FIREBASE_HOST, SSL_PORT);
@@ -281,3 +289,18 @@ void duty_cycle(){
   Serial.print("\n");
   delay(250);
   }
+  void enterSleepMode() {
+   // Configura o modo de sono
+  set_sleep_mode(SLEEP_MODE_STANDBY); // Modo de sono profundo
+  sleep_enable(); // Habilita o modo de sono
+
+  // Coloca o Arduino em modo de sono
+  sleep_mode();
+  Serial.println("Modo de sono");
+  // delay(300000);
+  // O Arduino acorda aqui
+  // A função sleep_mode() nunca retorna até que o Arduino acorde
+  // Então, qualquer código após a chamada sleep_mode() será executado após o despertar
+  sleep_disable(); // Desabilita o modo de 
+  Serial.println("Modo de sono desabilitado.");
+}

@@ -12,10 +12,11 @@ TinyGPS gps;
 #define rxPin 8
 #define txPin 9
 SoftwareSerial sim800(txPin, rxPin);
-int cont = 0, n_amostral = 10;
+int cont = 0, n_amostral = 10,cont_temp=0,cont_temperatura_enviada=0;
 float vetor_on[10] = {0}, vetor_off[10] = {0},temperatura;
 String dado1, dado2;
 int ano;
+float vetor_temp[10];
 byte mes, dia, hora, minuto, segundo, centesimo;
 bool interruptFlag = false;
 const int interruptPin = 2; // Define o pino para a interrupção externa
@@ -43,64 +44,39 @@ const long interval = 60000;  // Intervalo de 2 min em segundos (em milissegundo
 void setup() {
   pinMode(pino, INPUT); //Define o pino digital 7 como uma entrada de dados
   pinMode(interruptPin, INPUT); // Define o pino como entrada
-  attachInterrupt(digitalPinToInterrupt(interruptPin), enviarsms, FALLING); // Configura a interrupção para ocorrer na borda de descida (FALLING)
+  // attachInterrupt(digitalPinToInterrupt(interruptPin), enviarsms, FALLING); // Configura a interrupção para ocorrer na borda de descida (FALLING)
   serial1.begin(9600);
   Serial.begin(9600);
   sim800.begin(9600);
   sensor.begin(9600); 
-  Serial.println(F("Inicializando..."));
+  // Serial.println(F("Inicializando..."));
 
   Serial.println(F("Inicializando módulo SIM800L..."));
 
   Serial.println(F("Inicializando modem..."));
   modem.restart();
   String modemInfo = modem.getModemInfo();
-  Serial.print(F("Modem: "));
+  // Serial.print(F("Modem: "));
   Serial.println(modemInfo);
 
   http_client.setHttpResponseTimeout(10 * 1000); // 10 segundos de timeout para resposta HTTP
 }
 
 void loop() {
-  // Verifica se houve uma interrupção
-  if (interruptFlag) {
-    enviarsms();
-    interruptFlag = false; // Reseta a flag de interrupção
-  }
+  // // Verifica se houve uma interrupção
+  // if (interruptFlag) {
+  //   enviarsms();
+  //   interruptFlag = false; // Reseta a flag de interrupção
+  // }
   // Lê o sensor por 1 minuto
-  unsigned long startTime1 = millis();
-  while (millis() - startTime1 < 60000) {
-    // lendo sensor
-    // Serial.println("lendo temperatura \n");
-    int estado_pino = digitalRead(pino);  //Lê o estado do pino (HIGH ou LOW)
-    float tempo_on = 0, tempo_off = 0;
-    while(estado_pino == HIGH){
-      tempo_on += 1;
-      estado_pino = digitalRead(pino);
-    }
-    while(estado_pino == LOW){
-      tempo_off += 1;
-      estado_pino = digitalRead(pino);
-    }
-    vetor_on[cont] = tempo_on;
-    vetor_off[cont] = tempo_off;
-    cont++;
-    if(cont == n_amostral){
-      // Serial.println("segunda funcao\n");
-      duty_cycle();
-      cont = 0; //Reinicialização do vetor
-      delay(250);
-    }
-  }
-
+  ler_sensor();
   // Depois lê o GPS
   lergps();
 
   //   // Coloca o Arduino em modo de sono por 2 minutos
-  Serial.println("Arduino entrando em modo de sono por 2 minutos...");
-  enterSleepMode();
-
-    Serial.println("Arduino acordou.");
+  // Serial.println("Arduino entrando em modo de sono por 2 minutos...");
+ 
+    // Serial.println("Arduino acordou.");
 }
  
 void PostToFirebase(const char *method, const String &path, const String &data, HttpClient *http) {
@@ -151,9 +127,10 @@ Data += "\"hora\":\"" + String(hora) + ":" + String(minuto) + ":" + String(segun
 Data += "\"temperatura\":\"" + String(temperatura) + "\",";
 Data += "}";
 
+cont_temperatura_enviada++;
   PostToFirebase("PATCH", FIREBASE_PATH, Data, &http_client);
   delay(60000); // Aguarda 1 minuto antes de obter novos dados do GPS
-  Serial.println("apos o gps loop");//long
+  // Serial.println("apos o gps loop");//long
   serial1.listen();
 }
 
@@ -185,20 +162,20 @@ void lergps(){
     Serial.println(float(longitude) / 100000, 6);
   }
   if (idadeInfo != TinyGPS::GPS_INVALID_AGE) {
-        Serial.print("Idade da Informacao (ms): ");
+        // Serial.print("Idade da Informacao (ms): ");
         Serial.println(idadeInfo);
     }
      gps.crack_datetime(&ano, &mes, &dia, &hora, &minuto, &segundo, &centesimo, &idadeInfo);
 
-     Serial.print("Data (GMT): ");
+    //  Serial.print("Data (GMT): ");
      Serial.print(dia);
      Serial.print("/");
      Serial.print(mes);
      Serial.print("/");
      Serial.println(ano);
 
-     Serial.print("Horario (GMT): ");
-     Serial.print(hora);
+    //  Serial.print("Horario (GMT): ");
+      Serial.print(hora);
      Serial.print(":");
      Serial.print(minuto);
      Serial.print(":");
@@ -212,15 +189,14 @@ void lergps(){
   Serial.println(dado1);
   Serial.println(dado2);
    delay(250);
+  
   }
- 
 
   unsigned long currentMillis = millis();
 
-  if (currentMillis - previousMillis >= interval) {
+  if(currentMillis - previousMillis >= interval) {
     // Muda para ouvir a porta do módulo GSM
-    //  ler_sensor();
-     sim800.listen();
+    //  sim800.listen();
 
     Serial.print(F("Conectando a "));
     Serial.print(apn);
@@ -230,7 +206,6 @@ void lergps(){
       delay(1000); // Adiciona atraso antes de tentar novamente
       return;
     }
-     Serial.println("fora da funcao");//long
     Serial.println(F(" OK"));
 
     http_client.connect(FIREBASE_HOST, SSL_PORT);
@@ -245,7 +220,8 @@ void lergps(){
       else
       {
           gps_loop();
-     
+  
+      }
     }
 
     // Volta para ouvir a porta do módulo GPS
@@ -255,11 +231,40 @@ void lergps(){
     previousMillis = currentMillis;
   }
 }
-}
+
 void enviarsms(){
      testebotao=cont1++;
 }
+void ler_sensor()
+{
+   unsigned long startTime1 = millis();
+  while (millis() - startTime1 < 60000) {
 
+    // Serial.println("lendo temperatura \n");
+    int estado_pino = digitalRead(pino);  //Lê o estado do pino (HIGH ou LOW)
+    float tempo_on = 0, tempo_off = 0;
+    while(estado_pino == HIGH){
+      tempo_on += 1;
+      estado_pino = digitalRead(pino);
+    }
+    while(estado_pino == LOW){
+      tempo_off += 1;
+      estado_pino = digitalRead(pino);
+    }
+    vetor_on[cont] = tempo_on;
+    vetor_off[cont] = tempo_off;
+    cont++;
+    if(cont == n_amostral){
+      // Serial.println("segunda funcao\n");
+      duty_cycle();
+      vetor_temp[cont_temp]=temperatura;
+      cont_temp++;
+      cont = 0; //Reinicialização do vetor
+      delay(250);
+    }
+  }
+
+}
 void duty_cycle(){
   int i;
   float duty_cycle = 0, tempo_alto = 0, soma_tempo_alto = 0, tempo_baixo = 0, soma_tempo_baixo = 0;
@@ -286,21 +291,7 @@ void duty_cycle(){
   Serial.println(duty_cycle, 5);    
   Serial.print("A temperatura, portanto, é: ");
   Serial.println(temperatura, 5); 
+  vetor_temp[i]=temperatura;
   Serial.print("\n");
   delay(250);
   }
-  void enterSleepMode() {
-   // Configura o modo de sono
-  set_sleep_mode(SLEEP_MODE_STANDBY); // Modo de sono profundo
-  sleep_enable(); // Habilita o modo de sono
-
-  // Coloca o Arduino em modo de sono
-  sleep_mode();
-  Serial.println("Modo de sono");
-  // delay(300000);
-  // O Arduino acorda aqui
-  // A função sleep_mode() nunca retorna até que o Arduino acorde
-  // Então, qualquer código após a chamada sleep_mode() será executado após o despertar
-  sleep_disable(); // Desabilita o modo de 
-  Serial.println("Modo de sono desabilitado.");
-}
